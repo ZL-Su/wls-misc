@@ -20,3 +20,7 @@ $\text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) + \sum_{k = 0
 ## Neuron operation
 
 - $\mathbf{y} = \sigma(\mathbf{W}\mathbf{x} + \mathbf{b})$
+
+# <span style="color:darkred"> **Paper List** </span>
+
+1. Multimodal Deep Learning
