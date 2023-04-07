@@ -30,6 +30,12 @@ $\text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) + \sum_{k = 0
 >- Training: `forward pass` $\rightarrow$ `eval loss` $\rightarrow$ `clear gradient: optim.zero_grad()` $\rightarrow$ `backward propagation: loss.backward()` $\rightarrow$ `parameter update: optim.step()`
 >- Testing: `forward pass` $\rightarrow$ `eval loss` $\rightarrow$ `check results`
 
+## Learning algorithms
+>
+>- Supervised learning
+>- Unsupervised learning
+>- Physics-supervised learning
+
 # <span style="color:darkred"> **Paper List** </span>
 
 1. Multimodal Deep Learning
