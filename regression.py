@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import utils
+import matplotlib_inline
+matplotlib_inline.backend_inline.set_matplotlib_formats('svg', 'pdf')
 
 class LinearRegressor(nn.Module):
     '''
@@ -9,8 +11,21 @@ class LinearRegressor(nn.Module):
     def __init__(self, input_size:int, output_size:int):
         super(LinearRegressor, self).__init__()
         self.net =  nn.Linear(input_size, output_size)
-
     def forward(self, x:torch.Tensor):
+        return self.net(x)
+
+class LogisticRegressor(nn.Module):
+    '''
+    @brief Regressor $y = \sigmoid(wx+b)$ to solve binary classification problem.
+           It should be trained by the `BCELoss` function with supervision.
+    '''
+    def __init__(self, input_size:int, output_size:int):
+        super(LogisticRegressor,self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_size, output_size),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
         return self.net(x)
 
 # Init machine runtime env
