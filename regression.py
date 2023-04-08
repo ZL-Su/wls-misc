@@ -16,20 +16,28 @@ class LinearRegressor(nn.Module):
 
 class LogisticRegressor(nn.Module):
     '''
-    @brief Regressor $y = \sigmoid(wx+b)$ to solve binary classification problem.
-           It should be trained by the `BCELoss` function with supervision.
+    @brief Regressor $y = tanh(wx+b)$ to solve binary classification problem.
+           It should be trained by the `BCELossWithLogits` function with supervision.
     '''
-    def __init__(self, input_size:int, output_size:int):
+    def __init__(self, input_size:int, output_size:int, hidden_size:list=[10]):
         super(LogisticRegressor,self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_size, output_size),
-            nn.Sigmoid()
-        )
+        self.net = []
+        hidden_size.insert(0, input_size)
+        for idx in range(len(hidden_size)-1):
+            self.net += [nn.Linear(hidden_size[idx], hidden_size[idx+1])]
+            self.net += [nn.Tanh()]
+        self.net += [nn.Linear(hidden_size[len(hidden_size)-1], output_size)]
+        self.net = nn.Sequential(*self.net)
+
     def forward(self, x):
         return self.net(x)
 
 # Init machine runtime env
 utils.__init_env__()
+
+model = LogisticRegressor(2,2)
+print("Arch of a logistic regressor model", model)
+y = model(torch.Tensor([1,2]))
 
 # Init model
 model = LinearRegressor(input_size=1, output_size=1)
