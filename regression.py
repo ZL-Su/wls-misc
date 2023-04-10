@@ -21,13 +21,13 @@ class LogisticRegressor(nn.Module):
     '''
     def __init__(self, input_size:int, output_size:int, hidden_size:list=[10]):
         super(LogisticRegressor,self).__init__()
-        self.net = []
+        net_cat = []
         hidden_size.insert(0, input_size)
         for idx in range(len(hidden_size)-1):
-            self.net += [nn.Linear(hidden_size[idx], hidden_size[idx+1])]
-            self.net += [nn.Tanh()]
-        self.net += [nn.Linear(hidden_size[len(hidden_size)-1], output_size)]
-        self.net = nn.Sequential(*self.net)
+            net_cat += [nn.Linear(hidden_size[idx], hidden_size[idx+1])]
+            net_cat += [nn.Tanh()]
+        net_cat += [nn.Linear(hidden_size[len(hidden_size)-1], output_size)]
+        self.net = nn.Sequential(*net_cat)
 
     def forward(self, x):
         return self.net(x)
