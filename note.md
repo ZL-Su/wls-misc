@@ -36,11 +36,29 @@ $\text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) + \sum_{k = 0
 >- Unsupervised learning
 >- Physics-supervised learning
 
+## Torch: `model.train()` vs `model.eval()`
+> In **train** mode, the *Batch Normalization (BN)* and *Dropout* are enabled. BN layers will compute the mean and var of input data and then, update the parameters; and Dropout layers will reserve the probility of activated neurons according to the specified parameter `p` (such as `p=0.4` means the response of 40% neurons will be zeroed randomly). 
+
+> In **eval** mode, BN and Dropout layers will be disabled, respectively, to stop the computation and updating of data mean and var and to let all activated neurons pass. In this mode, BN layers will use the learned mean and var values directly, and it does not affect the gradient computation, but the backpropagation will be stopped. If the gradient is not required, `torch.no_grad()` should be used.
+
 # <span style="color:darkred"> **Paper List** </span>
 
 1. Multimodal Deep Learning
 2. Parallelized computational 3D video microscopy offreely moving organisms at multiple gigapixels per second
 
-# How to run python script in Linux terminal
+
+# <span style="color:darkred"> **Python** </span>
+## How to run python script in Linux terminal
 >
 > Enter: `/usr/bin/python3.10 script_name.py`
+
+## Fundamental pattern of network class with PyTorch
+>```
+> class Network(nn.Module):
+>   def __init__(self, input_size, output_size):
+>      super(Network, self).__init__()
+>      // do something
+>   def forward(self, x):
+>      // code for perform network computation
+>      pass
+>```
