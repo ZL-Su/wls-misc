@@ -10,7 +10,7 @@ class ChannelAttention(nn.Module):
      - `ratio` Reduction ratio of channels from input to output, i.e. `out_planes = ratio * in_planes`
     '''
     def __init__(self, in_planes:int, ratio:int=16):
-        super().__init__(ChannelAttention, self)
+        super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1) #
         self.max_pool = nn.AdaptiveMaxPool2d(1) # 
         self.mlp = nn.Sequential(
@@ -37,7 +37,7 @@ class SpatialAttention(nn.Module):
      - `kernel_size` Kernel size specified to perform convolution on catenated feature map 
     '''
     def __init__(self, kernel_size:int=7):
-        super().__init__(SpatialAttention, self)
+        super(SpatialAttention, self).__init__()
         assert kernel_size in (3,7), 'kernel size in `SpatialAttention` must be 3 or 7'
         self.conv = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=False)
         self.sigmoid = nn.Sigmoid()

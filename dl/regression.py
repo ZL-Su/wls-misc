@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import utils
+import attentions as attns
 import matplotlib_inline
 matplotlib_inline.backend_inline.set_matplotlib_formats('svg', 'pdf')
 
@@ -38,6 +39,11 @@ utils.__init_env__()
 model = LogisticRegressor(2,2)
 print("Arch of a logistic regressor model", model)
 y = model(torch.Tensor([1,2]))
+
+CAM = attns.ChannelAttention(1, 1)
+print("Arch of ChannelAttention", CAM)
+SAM = attns.SpatialAttention(7)
+print("Arch of SpatialAttention", SAM)
 
 # Init model
 model = LinearRegressor(input_size=1, output_size=1)
