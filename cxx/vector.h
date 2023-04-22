@@ -1,5 +1,10 @@
 #include <algorithm>
 
+// C++11, 14, 17, 20, 23
+// Compilation (complile-time)->linker->(runtime)
+
+constexpr auto x = 1024 / 2;
+
 namespace dyvp
 {
    template <typename T, size_t N>
@@ -13,9 +18,10 @@ namespace dyvp
           : dim(_)
       {
       }
+
       inline decltype(auto) operator[](size_t i) const
       {
-         return pd[i];
+         return (pd[i]);
       }
       inline decltype(auto) operator[](size_t i)
       {
@@ -57,7 +63,7 @@ namespace dyvp
    };
 
    template <typename T, size_t N>
-   inline Vector<T, N> operator+(const Vector<T, N> &x, const Vector<T, N> &y) noexcept
+   inline Vector<T, N> sum(const Vector<T, N> &x, const Vector<T, N> &y) noexcept
    {
       Vector<T, N> ret(std::min(x.size(), y.size()));
       for (auto i = 0; i < ret.size(); ++i)
