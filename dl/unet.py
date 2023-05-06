@@ -9,7 +9,7 @@ class DoubleConvolution(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU()   
+            nn.ReLU()
         )
 
     def forward(self, x:torch.Tensor):
@@ -58,24 +58,16 @@ class UNet(nn.Module):
 
     def forward(self, x:torch.Tensor):
         pass_through=[]
-        print(x.shape)
         for i in range(len(self.down_conv)):
             x = self.down_conv[i](x)
-            print(x.shape)
             pass_through.append(x)
             x = self.down_sample[i](x)
-            print(x.shape)
         x = self.middle_conv(x)
-        print(x.shape)
         for i in range(len(self.up_conv)):
             x = self.up_sample[i](x)
-            print(x.shape)
             x = self.concat[i](x, pass_through.pop())
-            print(x.shape)
             x = self.up_conv[i](x)
-            print(x.shape)
         x = self.final_conv(x)
-        print(x.shape)
         return x
 
 model = UNet(1, 2)
