@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 import utils
+import os, tqdm, cv2, random
+import pandas as pd
+import seaborn as sns
 
 class ConvBlock(nn.Module):
     """
@@ -131,6 +135,26 @@ class AttentionUNet(nn.Module):
         
         return d1
     
+class BrainMRIDataset(Dataset):
+    def __init__(self, root_path:str, transforms=None):
+        self.data_paths=[]
+        path = os.path.join(root_path, "datasets/lgg-seg/lgg-mri-segmentation/kaggle_3m")
+        for dir in os.listdir(path):
+            dir_path = os.path.join(path, dir)
+            if(os.path.isdir(dir_path)):
+                for fnames in os.listdir(dir_path):
+                    im_path = os.path.join(dir_path, fnames)
+                    self.data_paths.append([dir, im_path])
+            else:
+                print(f"[INFO] Not a dir: {dir_path}")
+
+    def __len__(self):
+        pass
+    
+    def __getitem__(self, index):
+        pass
+
+dset = BrainMRIDataset(utils.parent_path(os.getcwd()))
 
 model = AttentionUNet(3, 1).to(utils.device())
 data = torch.randn(1, 3, 512, 512).to(utils.device())
