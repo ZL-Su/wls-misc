@@ -1,3 +1,4 @@
+import os
 import sys
 import torch
 
@@ -13,3 +14,6 @@ def __init_env__(seed:int=42):
    str = "Using torch" + torch.__version__
    str = str + " on device " + device().type.capitalize()
    print(str)
+
+def parent_path(path):
+   return os.path.abspath(os.path.join(path, os.pardir))
