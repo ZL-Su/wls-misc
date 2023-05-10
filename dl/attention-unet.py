@@ -1,10 +1,13 @@
 import torch
 import torch.nn as nn
+import torch.utils.data as tdata
 from torch.utils.data import Dataset, DataLoader
 import utils
-import os, tqdm, cv2, random
+import os, tqdm, cv2, random, decimal
+import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 class ConvBlock(nn.Module):
     """
@@ -137,24 +140,90 @@ class AttentionUNet(nn.Module):
     
 class BrainMRIDataset(Dataset):
     def __init__(self, root_path:str, transforms=None):
-        self.data_paths=[]
+        end_len, end_mask_len = 4, 9
+        data_paths=[]
         path = os.path.join(root_path, "datasets/lgg-seg/lgg-mri-segmentation/kaggle_3m")
         for dir in os.listdir(path):
             dir_path = os.path.join(path, dir)
             if(os.path.isdir(dir_path)):
                 for fnames in os.listdir(dir_path):
                     im_path = os.path.join(dir_path, fnames)
-                    self.data_paths.append([dir, im_path])
+                    data_paths.append([dir, im_path])
             else:
                 print(f"[INFO] Not a dir: {dir_path}")
+        df = pd.DataFrame(data_paths, columns=["dir_name", "image_path"])
+        df_imgs = df[~df["image_path"].str.contains("mask")]
+        df_msks = df[df["image_path"].str.contains("mask")]
+
+        imgs = sorted(df_imgs["image_path"].values, key=lambda x: int(x[len(x)-end_len-1: -end_len]))
+        msks = sorted(df_msks["image_path"].values, key=lambda x: int(x[len(x)-end_mask_len-1: -end_mask_len]))
+
+        df = pd.DataFrame({"patient":df_imgs.dir_name.values,
+                           "image_path":imgs, "mask_path":msks})
+        df["diagnosis"] = df["mask_path"].apply(lambda x : self.pos_neg_diagnosis(x))
+        # cached data frame:
+        self.df = df
+        self.transform = transforms
 
     def __len__(self):
-        pass
+        return len(self.df)
     
-    def __getitem__(self, index):
-        pass
+    def __getitem__(self, idx):
+        image = np.array(cv2.imread(str(self.df.iloc[idx, 1])))
+        image = image.transpose(2,0,1)
+        mask = np.array(cv2.imread(str(self.df.iloc[idx, 2]), 0))
+        mask = np.expand_dims(mask, axis=0)
+        if self.transform != None:
+            augmented = self.transform(image=image, mask = mask)
+            image = augmented["image"]
+            mask = augmented["mask"]
+        return image, mask
 
+    @staticmethod
+    def pos_neg_diagnosis(mask_path):
+        val = np.max(cv2.imread(mask_path))
+        return 1 if val > 0 else 0
+    
+def show_aug(inputs, nrows=5, ncols=5, norm=False):
+    plt.style.use("dark_background")
+    plt.figure(figsize=(10, 10))
+    plt.subplots_adjust(wspace=0., hspace=0.)
+    
+    if len(inputs) > 25: inputs = inputs[:25]
+    i_ = 0
+    for idx in range(len(inputs)):
+        # normalization
+        if norm:           
+            img = inputs[idx].numpy()#.transpose(1,2,0)
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225] 
+            img = (img*std+mean).astype(np.float32)
+        else:
+            img = inputs[idx].numpy().astype(np.float32)
+            img = img[0,:,:]
+        
+        plt.subplot(nrows, ncols, i_+1)
+        plt.imshow(img); 
+        plt.axis('off')
+        i_ += 1
+    return plt.show()
+
+# make datasets: train_set, val_set, and test_set
 dset = BrainMRIDataset(utils.parent_path(os.getcwd()))
+num_train = int(dset.__len__()*0.9)
+dset, val_set = tdata.random_split(dset, [num_train, dset.__len__()-num_train])
+num_train = int(dset.__len__()*0.8)
+train_set, test_set = tdata.random_split(dset, [num_train, dset.__len__()-num_train])
+
+# make dataloaders
+batch_size = 2**4
+train_loader = DataLoader(train_set, batch_size, num_workers=2, shuffle=True)
+val_loader = DataLoader(val_set, batch_size, num_workers=2, shuffle=True)
+test_loader = DataLoader(test_set, batch_size, num_workers=2, shuffle=True)
+
+images, masks = next(iter(train_loader))
+show_aug(images, 4, 4)
+show_aug(masks, 4, 4, norm=False)
 
 model = AttentionUNet(3, 1).to(utils.device())
 data = torch.randn(1, 3, 512, 512).to(utils.device())
