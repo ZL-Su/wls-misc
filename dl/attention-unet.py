@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.utils.data as tdata
 from torch.utils.data import Dataset, DataLoader
 import utils
-import os, tqdm, cv2, random, decimal
+import os, cv2, time, random, decimal
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 class ConvBlock(nn.Module):
@@ -169,9 +171,9 @@ class BrainMRIDataset(Dataset):
         return len(self.df)
     
     def __getitem__(self, idx):
-        image = np.array(cv2.imread(str(self.df.iloc[idx, 1])))
+        image = np.array(cv2.imread(str(self.df.iloc[idx, 1])), dtype=np.float32)
         image = image.transpose(2,0,1)
-        mask = np.array(cv2.imread(str(self.df.iloc[idx, 2]), 0))
+        mask = np.array(cv2.imread(str(self.df.iloc[idx, 2]), 0), dtype=np.float32)
         mask = np.expand_dims(mask, axis=0)
         if self.transform != None:
             augmented = self.transform(image=image, mask = mask)
@@ -183,6 +185,22 @@ class BrainMRIDataset(Dataset):
     def pos_neg_diagnosis(mask_path):
         val = np.max(cv2.imread(mask_path))
         return 1 if val > 0 else 0
+    
+class DiceLoss(nn.Module):
+    def __init__(self, weight=None, size_avg=True):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, preds:torch.Tensor, labels:torch.Tensor, smooth=1):
+        # Comment out if the model has a sigmoid or equivalent layer
+        preds = F.sigmoid(preds)
+
+        preds_vec = preds.view(-1)
+        label_vec = labels.view(-1)
+
+        inters = 2.*(preds_vec*label_vec).sum()
+        dice = (inters+smooth)/(preds_vec.sum()+label_vec.sum()+smooth)
+        
+        return 1-dice
     
 def show_aug(inputs, nrows=5, ncols=5, norm=False):
     plt.style.use("dark_background")
@@ -199,14 +217,95 @@ def show_aug(inputs, nrows=5, ncols=5, norm=False):
             std = [0.229, 0.224, 0.225] 
             img = (img*std+mean).astype(np.float32)
         else:
-            img = inputs[idx].numpy().astype(np.float32)
+            img = inputs[idx].detach().numpy().astype(np.float32)
             img = img[0,:,:]
         
         plt.subplot(nrows, ncols, i_+1)
-        plt.imshow(img); 
+        plt.imshow(img)
         plt.axis('off')
         i_ += 1
     return plt.show()
+
+def dice_coef_metric(preds, labels):
+    inter = 2.*(preds*labels).sum()
+    union = preds.sum() + labels.sum()
+    return 1 if union == 0 else inter/union
+
+def compute_iou(model:AttentionUNet, loader:DataLoader, threshold=0.3):
+    model.eval()
+    val_loss = 0
+    num_steps  = 0
+    with torch.no_grad():
+        for i_step, (data, label) in enumerate(loader):
+            data = data.to(utils.device())
+            label = label.to(utils.device())
+            preds = model(data)
+
+            out_cut = np.copy(preds.data.cpu().numpy())
+            out_cut[np.nonzero(out_cut<threshold)] = 0.0
+            out_cut[np.nonzero(out_cut>=threshold)] = 1.0
+
+            dice_loss = dice_coef_metric(out_cut, label.data.cpu().numpy())
+            val_loss += dice_loss
+            num_steps += i_step
+    return val_loss/num_steps
+
+def train(model_name:str, 
+          model:AttentionUNet,
+          train_loader:DataLoader, val_loader:DataLoader, 
+          loss_func, 
+          optimizer, lr_scheduler):
+    print(f"[INFO] Model is initializing... {model_name}")
+
+    CHECKPT_PATH = "/home/dgelom/src/misc/dl/out"
+    plt.style.use("dark_background")
+    fig, ax = plt.subplots()
+    img = ax.imshow(np.arange(0, 256*256).reshape(256, 256))
+    loss_hist, train_hist, val_hist = [], [], []
+    for epoch in range(0, 50):
+        model.train()
+
+        loss_values, train_iou = [], []
+        for step, (data, label) in enumerate(tqdm(train_loader, colour='green')):
+            data = data.to(utils.device())
+            label = label.to(utils.device())
+            preds = model(data)
+
+            for b in range(preds.shape[0]):
+                img.set_data(preds[b,0,:,:].detach().numpy())
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                time.sleep(0.01)
+
+            out_cut = np.copy(preds.data.cpu().numpy())
+            out_cut[np.nonzero(out_cut<0.5)] = 0.0
+            out_cut[np.nonzero(out_cut>=0.5)] = 1.0
+
+            train_dice = dice_coef_metric(out_cut, label.data.cpu().numpy())
+            train_loss = loss_func(preds, label)
+
+            loss_values.append(train_loss.item())
+            train_iou.append(train_dice)
+
+            optimizer.zero_grad()
+            train_loss.backward()
+            optimizer.step()
+        
+        val_mean_iou = compute_iou(model, val_loader)
+
+        loss_hist.append(np.array(loss_values).mean())
+        train_hist.append(np.array(train_iou).mean())
+        val_hist.append(val_mean_iou)
+
+        print("Epoch [%d]" % (epoch))
+        print("Mean loss on train:", np.array(loss_values).mean(), 
+              "\nMean DICE on train:", np.array(train_iou).mean(), 
+              "\nMean DICE on validation:", val_mean_iou)
+        
+        torch.save(model.state_dict(), f"{CHECKPT_PATH}/checkpoint_{epoch}.pt")
+        
+    return loss_hist, train_hist, val_hist
+
 
 # make datasets: train_set, val_set, and test_set
 dset = BrainMRIDataset(utils.parent_path(os.getcwd()))
@@ -216,18 +315,21 @@ num_train = int(dset.__len__()*0.8)
 train_set, test_set = tdata.random_split(dset, [num_train, dset.__len__()-num_train])
 
 # make dataloaders
-batch_size = 2**4
+batch_size = 2**3 
 train_loader = DataLoader(train_set, batch_size, num_workers=2, shuffle=True)
 val_loader = DataLoader(val_set, batch_size, num_workers=2, shuffle=True)
 test_loader = DataLoader(test_set, batch_size, num_workers=2, shuffle=True)
 
-images, masks = next(iter(train_loader))
-show_aug(images, 4, 4)
-show_aug(masks, 4, 4, norm=False)
+#images, masks = next(iter(train_loader))
+#show_aug(images, 4, 4)
+#show_aug(masks, 4, 4, norm=False)
 
+# make model instance
 model = AttentionUNet(3, 1).to(utils.device())
-data = torch.randn(1, 3, 512, 512).to(utils.device())
-preds = model(data)
 
-print(preds.shape)
-print(preds)
+# make optimizer
+optim = torch.optim.Adamax(model.parameters(), lr=1.0e-3)
+
+# start to train
+plt.ion()
+lh, th, vh = train("Attention-Unet", model, train_loader, val_loader, DiceLoss(), optim, False)
