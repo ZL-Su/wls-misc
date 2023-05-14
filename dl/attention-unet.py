@@ -10,6 +10,7 @@ import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from visdom import Visdom
 
 class ConvBlock(nn.Module):
     """
@@ -253,14 +254,13 @@ def compute_iou(model:AttentionUNet, loader:DataLoader, threshold=0.3):
 def train(model_name:str, 
           model:AttentionUNet,
           train_loader:DataLoader, val_loader:DataLoader, 
-          loss_func, 
-          optimizer, lr_scheduler):
+          loss_func, optimizer,
+          vis:Visdom):
+    
     print(f"[INFO] Model is initializing... {model_name}")
 
     CHECKPT_PATH = "/home/dgelom/src/misc/dl/out"
-    plt.style.use("dark_background")
-    fig, ax = plt.subplots()
-    img = ax.imshow(np.arange(0, 256*256).reshape(256, 256))
+
     loss_hist, train_hist, val_hist = [], [], []
     for epoch in range(0, 50):
         model.train()
@@ -271,18 +271,19 @@ def train(model_name:str,
             label = label.to(utils.device())
             preds = model(data)
 
-            for b in range(preds.shape[0]):
-                img.set_data(preds[b,0,:,:].detach().numpy())
-                fig.canvas.draw()
-                fig.canvas.flush_events()
-                time.sleep(0.01)
+            for i in range(preds.shape[0]):
+                vis.heatmap(preds[i,0,:,:], win=f"Output-{i}", opts=dict(title=f"Predictions {i}/{step}", colormap='Viridis'))
 
             out_cut = np.copy(preds.data.cpu().numpy())
             out_cut[np.nonzero(out_cut<0.5)] = 0.0
             out_cut[np.nonzero(out_cut>=0.5)] = 1.0
 
+            for i in range(out_cut.shape[0]):
+                vis.heatmap(out_cut[i,0,:,:], win=f"Threshold-{i}", opts=dict(title=f"Segmentation {i}/{step}", colormap='Viridis'))
+
             train_dice = dice_coef_metric(out_cut, label.data.cpu().numpy())
             train_loss = loss_func(preds, label)
+            vis.line(Y=np.array([train_loss.item()]),X=np.array([epoch*len(train_loader)+step]),win="Loss", update="append")
 
             loss_values.append(train_loss.item())
             train_iou.append(train_dice)
@@ -331,5 +332,5 @@ model = AttentionUNet(3, 1).to(utils.device())
 optim = torch.optim.Adamax(model.parameters(), lr=1.0e-3)
 
 # start to train
-plt.ion()
-lh, th, vh = train("Attention-Unet", model, train_loader, val_loader, DiceLoss(), optim, False)
+viz  = Visdom(port=8097, use_incoming_socket=False)
+lh, th, vh = train("Attention-Unet", model, train_loader, val_loader, DiceLoss(), optim, viz)
