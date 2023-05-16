@@ -171,6 +171,8 @@ class BrainMRIDataset(Dataset):
     def __len__(self):
         return len(self.df)
     
+    def size(self): return self.__len__()
+    
     def __getitem__(self, idx):
         image = np.array(cv2.imread(str(self.df.iloc[idx, 1])), dtype=np.float32)
         image = image.transpose(2,0,1)
@@ -310,8 +312,8 @@ def train(model_name:str,
 
 # make datasets: train_set, val_set, and test_set
 dset = BrainMRIDataset(utils.parent_path(os.getcwd()))
-num_train = int(dset.__len__()*0.9)
-dset, val_set = tdata.random_split(dset, [num_train, dset.__len__()-num_train])
+num_train = int(dset.size()*0.9)
+dset, val_set = tdata.random_split(dset, [num_train, dset.size()-num_train])
 num_train = int(dset.__len__()*0.8)
 train_set, test_set = tdata.random_split(dset, [num_train, dset.__len__()-num_train])
 
