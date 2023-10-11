@@ -17,9 +17,9 @@ def plot_state(a, title):
    pylab.title(title)
    pylab.show()
 
-N = 1024
+N = 512
 DX = 2./N
-steps = 128
+steps = 64
 dt = 1./steps
 nu = 0.01/(N*np.pi)
 
