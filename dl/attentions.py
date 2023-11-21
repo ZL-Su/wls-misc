@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as functional
 
 class ChannelAttention(nn.Module):
     '''
@@ -48,3 +49,36 @@ class SpatialAttention(nn.Module):
         x = torch.cat([avg, max], dim=1)
         x = self.conv(x)
         return self.sigmoid(x)
+    
+class SpatialTransformerNet(nn.Module):
+    r'''
+    \brief:
+       Impl of the `Spatial Transformer` plug-in module
+    \author Zhilong Su, Jun/2/2023
+    '''
+    def __init__(self, cin:int=1, kernel_size:int=7):
+        super(SpatialTransformerNet, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels=cin, out_channels=8, kernel_size=kernel_size),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=8, out_channels=10, kernel_size=5),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.ReLU(inplace=True),
+        )
+        self.regres = nn.Sequential(
+            nn.Linear(in_features=10*3*3, out_features=32),
+            nn.ReLU(inplace=True),
+            nn.Linear(32, 6)
+        )
+
+    def forward(self, x:torch.Tensor):
+        y = self.conv(x)
+        y = y.view(-1, 10*3*3)
+        p = self.regres(y)
+        p = p.view(-1, 2, 3)
+
+        grid = functional.affine_grid(p, x.size())
+        x = functional.grid_sample(x, grid=grid)
+
+        return x
