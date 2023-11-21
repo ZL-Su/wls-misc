@@ -26,8 +26,10 @@ class InvNet(nn.Module):
         self.pose = pp.Parameter(init)
 
     def forward(self, p):
-        error = (self.pose@p).Log()
+        error = (self.pose*p).Log()
         return error.tensor()
+    
+print("Arch of InvNet\n", InvNet)
     
 input = pp.randn_SE3(2, 2, device=utils.device())
 invnet = InvNet(2, 2).to(device=utils.device())
