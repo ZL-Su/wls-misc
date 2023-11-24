@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import utils
 import attentions as attns
+import matplotlib.pyplot as plt
 import matplotlib_inline
 matplotlib_inline.backend_inline.set_matplotlib_formats('svg', 'pdf')
 
@@ -52,19 +53,27 @@ lossf = nn.MSELoss() # mean-squared error
 optim = torch.optim.SGD(model.parameters(), lr=0.01)
 
 # Make input data and labels
-data = torch.Tensor([[1],[2],[3],[4],[5]])
-label = torch.Tensor([[2],[4],[6],[8],[10]])
+data_list = []
+for v in torch.arange(0, 10):
+    data_list.append([v.item()])
+data = torch.Tensor(data_list)
+label = data*2.0
+data = data+torch.randn(data.shape)
 
 # Training...
+loss_hist = []
 for epoch in range(100):
     # forward pass
     preds = model(data)
     loss = lossf(preds, label)
     print(f'Train loss: {loss:.4f}')
+    loss_hist.append(loss.item())
     # backward pass
     optim.zero_grad()
     loss.backward()
     optim.step()
+plt.plot(loss_hist)
+plt.show()
 
 # Test data
 x = torch.Tensor([[6],[7],[8],[9]])
