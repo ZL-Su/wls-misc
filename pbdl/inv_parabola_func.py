@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import matplotlib.pylab as plt
 
 N = 200
@@ -34,15 +33,15 @@ plt.plot(x, y, '.', label='Data points', color="lightgray")
 y = model(X).squeeze(dim=-1).detach().numpy()
 plt.plot(x, y, '.', label='Supervised', color="red")
 
-def loss_dp(y_true, y_pred):
-   return loss(y_true, y_pred**2)
+def loss_dp(x_true, y_pred):
+   return loss(x_true, y_pred**2)
 model_dp = torch.nn.Sequential(
    nn.Linear(1, 100),
    nn.ReLU(inplace=True),
    nn.Linear(100, 1, bias=False)
 )
 solver_dp = torch.optim.Adam(model_dp.parameters(), lr=0.001)
-for epoch in range(500):
+for epoch in range(5000):
    y = model_dp(X)
    error = loss_dp(X, y)
    print(f'Train loss: {error:.4f}')
